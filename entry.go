@@ -1,4 +1,4 @@
-package jss
+package js
 
 // Entry represents entry key-value object in Javascript.
 type Entry[K comparable, V any] struct {

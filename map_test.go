@@ -1,6 +1,8 @@
-package jss
+package js
 
 import (
+	"reflect"
+	"sort"
 	"testing"
 )
 
@@ -340,4 +342,182 @@ func TestEntries(t *testing.T) {
 	if count != 2 {
 		t.Errorf("expected early break after 2, got %d", count)
 	}
+}
+
+func TestMapForEach(t *testing.T) {
+	t.Run("visits every entry exactly once", func(t *testing.T) {
+		m := Map[string, int]{"a": 1, "b": 2, "c": 3}
+
+		visited := map[string]int{}
+		calls := 0
+		m.ForEach(func(v int, k string) {
+			calls++
+			visited[k] = v
+		})
+
+		if calls != len(m) {
+			t.Fatalf("expected %d calls, got %d", len(m), calls)
+		}
+		if !reflect.DeepEqual(visited, map[string]int(m)) {
+			t.Fatalf("expected %v, got %v", m, visited)
+		}
+	})
+
+	t.Run("passes value first and key second", func(t *testing.T) {
+		m := Map[string, int]{"only": 42}
+
+		var gotKey string
+		var gotValue int
+		m.ForEach(func(v int, k string) {
+			gotValue, gotKey = v, k
+		})
+
+		if gotKey != "only" || gotValue != 42 {
+			t.Fatalf("expected (42, %q), got (%d, %q)", "only", gotValue, gotKey)
+		}
+	})
+
+	t.Run("empty map never calls fn", func(t *testing.T) {
+		m := Map[string, int]{}
+
+		m.ForEach(func(v int, k string) {
+			t.Fatalf("callback should not be called, got (%d, %q)", v, k)
+		})
+	})
+
+	t.Run("nil map does not panic or call fn", func(t *testing.T) {
+		var m Map[string, int]
+
+		m.ForEach(func(v int, k string) {
+			t.Fatalf("callback should not be called, got (%d, %q)", v, k)
+		})
+	})
+
+	t.Run("works with non-string keys and struct values", func(t *testing.T) {
+		type point struct{ x, y int }
+		m := Map[int, point]{1: {1, 2}, 2: {3, 4}}
+
+		var got []Entry[int, point]
+		m.ForEach(func(v point, k int) {
+			got = append(got, Entry[int, point]{k, v})
+		})
+		sort.Slice(got, func(i, j int) bool { return got[i].Key < got[j].Key })
+
+		want := []Entry[int, point]{{1, point{1, 2}}, {2, point{3, 4}}}
+		if !reflect.DeepEqual(got, want) {
+			t.Fatalf("expected %v, got %v", want, got)
+		}
+	})
+
+	t.Run("does not modify the map", func(t *testing.T) {
+		m := Map[string, int]{"a": 1, "b": 2}
+		before := map[string]int{"a": 1, "b": 2}
+
+		m.ForEach(func(v int, k string) {})
+
+		if !reflect.DeepEqual(map[string]int(m), before) {
+			t.Fatalf("map changed: expected %v, got %v", before, m)
+		}
+	})
+
+	t.Run("callback can update values of existing keys", func(t *testing.T) {
+		m := Map[string, int]{"a": 1, "b": 2}
+
+		m.ForEach(func(v int, k string) {
+			m[k] = v * 10
+		})
+
+		want := Map[string, int]{"a": 10, "b": 20}
+		if !reflect.DeepEqual(m, want) {
+			t.Fatalf("expected %v, got %v", want, m)
+		}
+	})
+
+	t.Run("callback can delete entries during iteration", func(t *testing.T) {
+		m := Map[string, int]{"a": 1, "b": 2, "c": 3}
+
+		m.ForEach(func(v int, k string) {
+			delete(m, k)
+		})
+
+		if len(m) != 0 {
+			t.Fatalf("expected empty map, got %v", m)
+		}
+	})
+}
+
+func TestMapForEachUntil(t *testing.T) {
+	t.Run("visits all entries when fn always returns true", func(t *testing.T) {
+		m := Map[string, int]{"a": 1, "b": 2, "c": 3}
+
+		calls := 0
+		m.ForEachUntil(func(v int, k string) bool {
+			calls++
+			return true
+		})
+
+		if calls != len(m) {
+			t.Fatalf("expected %d calls, got %d", len(m), calls)
+		}
+	})
+
+	t.Run("stops as soon as fn returns false", func(t *testing.T) {
+		m := Map[string, int]{"a": 1, "b": 2, "c": 3, "d": 4}
+
+		calls := 0
+		m.ForEachUntil(func(v int, k string) bool {
+			calls++
+			return false
+		})
+
+		if calls != 1 {
+			t.Fatalf("expected exactly 1 call, got %d", calls)
+		}
+	})
+
+	t.Run("stops after the entry that returns false", func(t *testing.T) {
+		m := Map[int, int]{}
+		for i := 0; i < 100; i++ {
+			m[i] = i
+		}
+
+		const limit = 10
+		calls := 0
+		m.ForEachUntil(func(v int, k int) bool {
+			calls++
+			return calls < limit
+		})
+
+		if calls != limit {
+			t.Fatalf("expected %d calls, got %d", limit, calls)
+		}
+	})
+
+	t.Run("passes value first and key second", func(t *testing.T) {
+		m := Map[string, int]{"only": 7}
+
+		var gotKey string
+		var gotValue int
+		m.ForEachUntil(func(v int, k string) bool {
+			gotValue, gotKey = v, k
+			return true
+		})
+
+		if gotKey != "only" || gotValue != 7 {
+			t.Fatalf("expected (7, %q), got (%d, %q)", "only", gotValue, gotKey)
+		}
+	})
+
+	t.Run("empty and nil maps never call fn", func(t *testing.T) {
+		var nilMap Map[string, int]
+		for name, m := range map[string]Map[string, int]{
+			"empty": {},
+			"nil":   nilMap,
+		} {
+			m.ForEachUntil(func(v int, k string) bool {
+				t.Fatalf("%s map: callback should not be called", name)
+				return true
+			})
+		}
+	})
 }

@@ -1,6 +1,8 @@
-package jss
+package js
 
 import "iter"
+
+// todo add forEach method
 
 // In Go, the map key must be comparable
 
@@ -101,6 +103,24 @@ func (m Map[K, V]) Entries() iter.Seq[Entry[K, V]] {
 			if !yield(Entry[K, V]{Key: k, Val: v}) {
 				return
 			}
+		}
+	}
+}
+
+// ForEach calls fn once for each key/value pair in the map.
+// Like JS, the callback receives (value, key). Iteration order is
+// unspecified, as with any Go map.
+func (m Map[K, V]) ForEach(fn func(value V, key K)) {
+	for k, v := range m {
+		fn(v, k)
+	}
+}
+
+// ForEachUntil stops iterating when fn returns false.
+func (m Map[K, V]) ForEachUntil(fn func(value V, key K) bool) {
+	for k, v := range m {
+		if !fn(v, k) {
+			return
 		}
 	}
 }

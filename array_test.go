@@ -1,4 +1,4 @@
-package jss
+package js
 
 import (
 	"cmp"
