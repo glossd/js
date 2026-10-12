@@ -1,0 +1,7 @@
+*.test
+*.out
+cmd/
+tmp*
+# Develop tools
+.idea/
+.vscode/
