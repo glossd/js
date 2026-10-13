@@ -31,8 +31,8 @@ func TestArray_Readme(t *testing.T) {
 		}
 
 		res := ArrayOf(shoppingCart...).
-			Filter(func(v Item) bool { return v.Keep }).                            // Step 1: Keep only checked items
-			Map(func(v Item) float64 { return v.Price * 0.9 }).                     // Step 2: Apply 10% discount
+			Filter(func(v Item) bool { return v.Keep }). // Step 1: Keep only checked items
+			Map(func(v Item) float64 { return v.Price * 0.9 }). // Step 2: Apply 10% discount
 			Reduce(func(sum float64, price float64) float64 { return sum + price }) // Step 3: Accumulate the total
 
 		expected := 1008.0
@@ -3209,6 +3209,130 @@ func TestArray_Entries(t *testing.T) {
 		for range a.Entries() {
 		}
 		if want := (Array[string]{"a", "b", "c"}); !reflect.DeepEqual(a, want) {
+			t.Errorf("receiver mutated: %#v", a)
+		}
+	})
+}
+
+// IndexOf tests
+func TestArray_IndexOf(t *testing.T) {
+	t.Run("returns first index of element", func(t *testing.T) {
+		a := Array[int]{1, 2, 3, 4, 5}
+		if a.IndexOf(3) != 2 {
+			t.Errorf("expected IndexOf(3) to be 2, got %d", a.IndexOf(3))
+		}
+		if a.IndexOf(1) != 0 {
+			t.Errorf("expected IndexOf(1) to be 0, got %d", a.IndexOf(1))
+		}
+		if a.IndexOf(6) != -1 {
+			t.Errorf("expected IndexOf(6) to be -1, got %d", a.IndexOf(6))
+		}
+	})
+
+	t.Run("returns first index with fromIndex", func(t *testing.T) {
+		a := Array[int]{1, 2, 3, 2, 1}
+		if a.IndexOf(2, 0) != 1 {
+			t.Errorf("expected IndexOf(2, 0) to be 1, got %d", a.IndexOf(2, 0))
+		}
+		if a.IndexOf(2, 2) != 3 {
+			t.Errorf("expected IndexOf(2, 2) to be 3, got %d", a.IndexOf(2, 2))
+		}
+		if a.IndexOf(2, 4) != -1 {
+			t.Errorf("expected IndexOf(2, 4) to be -1, got %d", a.IndexOf(2, 4))
+		}
+	})
+
+	t.Run("returns first index with negative fromIndex", func(t *testing.T) {
+		a := Array[int]{1, 2, 3, 2, 1}
+		// JavaScript: [1,2,3,2,1].indexOf(2, -3) -> starts from index 5+(-3)=2 -> finds at index 3
+		if a.IndexOf(2, -3) != 3 {
+			t.Errorf("expected IndexOf(2, -3) to be 3, got %d", a.IndexOf(2, -3))
+		}
+		// JavaScript: [1,2,3,2,1].indexOf(2, -1) -> starts from index 5+(-1)=4 -> no match (a[4]=1)
+		if a.IndexOf(2, -1) != -1 {
+			t.Errorf("expected IndexOf(2, -1) to be -1, got %d", a.IndexOf(2, -1))
+		}
+	})
+
+	t.Run("returns -1 for empty array", func(t *testing.T) {
+		var empty Array[int]
+		if empty.IndexOf(1) != -1 {
+			t.Errorf("expected IndexOf(1) on empty array to be -1, got %d", empty.IndexOf(1))
+		}
+	})
+
+	t.Run("zero value match", func(t *testing.T) {
+		a := Array[int]{1, 0, 2}
+		if a.IndexOf(0) != 1 {
+			t.Errorf("expected IndexOf(0) to be 1, got %d", a.IndexOf(0))
+		}
+	})
+
+	t.Run("does not mutate receiver", func(t *testing.T) {
+		a := Array[int]{1, 2, 3}
+		_ = a.IndexOf(2)
+		if len(a) != 3 || a[0] != 1 || a[1] != 2 || a[2] != 3 {
+			t.Errorf("receiver mutated: %#v", a)
+		}
+	})
+}
+
+// LastIndexOf tests
+func TestArray_LastIndexOf(t *testing.T) {
+	t.Run("returns last index of element", func(t *testing.T) {
+		a := Array[int]{1, 2, 3, 2, 1}
+		if a.LastIndexOf(2) != 3 {
+			t.Errorf("expected LastIndexOf(2) to be 3, got %d", a.LastIndexOf(2))
+		}
+		if a.LastIndexOf(1) != 4 {
+			t.Errorf("expected LastIndexOf(1) to be 4, got %d", a.LastIndexOf(1))
+		}
+		if a.LastIndexOf(6) != -1 {
+			t.Errorf("expected LastIndexOf(6) to be -1, got %d", a.LastIndexOf(6))
+		}
+	})
+
+	t.Run("returns last index with fromIndex", func(t *testing.T) {
+		a := Array[int]{1, 2, 3, 2, 1}
+		if a.LastIndexOf(2, 3) != 3 {
+			t.Errorf("expected LastIndexOf(2, 3) to be 3, got %d", a.LastIndexOf(2, 3))
+		}
+		if a.LastIndexOf(2, 2) != 1 {
+			t.Errorf("expected LastIndexOf(2, 2) to be 1, got %d", a.LastIndexOf(2, 2))
+		}
+		if a.LastIndexOf(2, 1) != 1 {
+			t.Errorf("expected LastIndexOf(2, 1) to be 1, got %d", a.LastIndexOf(2, 1))
+		}
+	})
+
+	t.Run("returns last index with negative fromIndex", func(t *testing.T) {
+		a := Array[int]{1, 2, 3, 2, 1}
+		if a.LastIndexOf(2, -3) != 1 {
+			t.Errorf("expected LastIndexOf(2, -3) to be 1, got %d", a.LastIndexOf(2, -3))
+		}
+		if a.LastIndexOf(2, -1) != 3 {
+			t.Errorf("expected LastIndexOf(2, -1) to be 3, got %d", a.LastIndexOf(2, -1))
+		}
+	})
+
+	t.Run("returns -1 for empty array", func(t *testing.T) {
+		var empty Array[int]
+		if empty.LastIndexOf(1) != -1 {
+			t.Errorf("expected LastIndexOf(1) on empty array to be -1, got %d", empty.LastIndexOf(1))
+		}
+	})
+
+	t.Run("zero value match", func(t *testing.T) {
+		a := Array[int]{1, 0, 2}
+		if a.LastIndexOf(0) != 1 {
+			t.Errorf("expected LastIndexOf(0) to be 1, got %d", a.LastIndexOf(0))
+		}
+	})
+
+	t.Run("does not mutate receiver", func(t *testing.T) {
+		a := Array[int]{1, 2, 3}
+		_ = a.LastIndexOf(2)
+		if len(a) != 3 || a[0] != 1 || a[1] != 2 || a[2] != 3 {
 			t.Errorf("receiver mutated: %#v", a)
 		}
 	})

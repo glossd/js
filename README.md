@@ -92,6 +92,8 @@ aFruits := ArrayFrom(fruits.Values()).Filter(func(v string) bool { return string
 | At | `At(index int) (T, bool)` | Returns the element at the given index |
 | FindIndex | `FindIndex(predicate func(value T) bool) int` | Returns the index of the first match, or -1 |
 | FindLastIndex | `FindLastIndex(predicate func(value T) bool) int` | Returns the index of the last match, or -1 |
+| IndexOf | `IndexOf(searchElement T, fromIndex ...int) int` | Returns the first index of an element, or -1 |
+| LastIndexOf | `LastIndexOf(searchElement T, fromIndex ...int) int` | Returns the last index of an element, or -1 |
 | Join | `Join(separator ...string) string` | Joins all elements into a string |
 | Keys | `Keys() iter.Seq[int]` | Returns an iterator over the indices |
 | Values | `Values() iter.Seq[T]` | Returns an iterator over the elements |

@@ -681,6 +681,75 @@ func (a Array[T]) Includes(searchElement T, fromIndex ...int) bool {
 	return false
 }
 
+// IndexOf returns the first index at which a given element can be found in the array,
+// or -1 if it is not present. This mirrors JavaScript's Array.prototype.indexOf.
+//
+// The method accepts a second argument, fromIndex, which is the index to start
+// the search at. Defaults to 0. A negative index counts from the end of the
+// array. If the index is greater than or equal to the array length, -1 is
+// returned. If the index is less than 0, the entire array is searched.
+//
+// The receiver is never modified.
+func (a Array[T]) IndexOf(searchElement T, fromIndex ...int) int {
+	if len(a) == 0 {
+		return -1
+	}
+
+	idx := 0
+	if len(fromIndex) > 0 {
+		idx = fromIndex[0]
+		if idx < 0 {
+			idx = len(a) + idx
+			if idx < 0 {
+				idx = 0
+			}
+		} else if idx >= len(a) {
+			return -1
+		}
+	}
+
+	for i := idx; i < len(a); i++ {
+		if reflect.DeepEqual(a[i], searchElement) {
+			return i
+		}
+	}
+	return -1
+}
+
+// LastIndexOf returns the last index at which a given element can be found in the array,
+// or -1 if it is not present. This mirrors JavaScript's Array.prototype.lastIndexOf.
+//
+// The method accepts a second argument, fromIndex, which is the index to start
+// the search at. Defaults to len(a) - 1, which searches the entire array. If
+// fromIndex is greater than or equal to len(a), the entire array is searched.
+// If fromIndex is less than 0, it is treated as len(a) + fromIndex, searching
+// from a position counted from the end of the array.
+//
+// The receiver is never modified.
+func (a Array[T]) LastIndexOf(searchElement T, fromIndex ...int) int {
+	n := len(a)
+	if n == 0 {
+		return -1
+	}
+
+	idx := n - 1
+	if len(fromIndex) > 0 {
+		idx = fromIndex[0]
+		if idx < 0 {
+			idx = n + idx
+		} else if idx >= n {
+			idx = n - 1
+		}
+	}
+
+	for i := idx; i >= 0; i-- {
+		if reflect.DeepEqual(a[i], searchElement) {
+			return i
+		}
+	}
+	return -1
+}
+
 // At is a port of JavaScript's Array.prototype.at.
 //
 // It returns the element at the given index. A negative index counts back from
