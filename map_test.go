@@ -521,3 +521,97 @@ func TestMapForEachUntil(t *testing.T) {
 		}
 	})
 }
+
+func TestGetOrInsert(t *testing.T) {
+	t.Run("returns existing value", func(t *testing.T) {
+		m := NewMap[string, int]()
+		m.Set("key", 42)
+
+		if val := m.GetOrInsert("key", 100); val != 42 {
+			t.Errorf("expected 42, got %d", val)
+		}
+	})
+
+	t.Run("inserts and returns new value for missing key", func(t *testing.T) {
+		m := NewMap[string, int]()
+
+		if val := m.GetOrInsert("key", 42); val != 42 {
+			t.Errorf("expected 42, got %d", val)
+		}
+
+		if !m.Has("key") {
+			t.Error("expected key to exist after GetOrInsert")
+		}
+		if val := m.GetOrInsert("key", 100); val != 42 {
+			t.Errorf("expected 42 (existing), got %d", val)
+		}
+	})
+
+	t.Run("initializes nil map", func(t *testing.T) {
+		var m Map[string, int]
+		if val := m.GetOrInsert("key", 42); val != 42 {
+			t.Errorf("expected 42, got %d", val)
+		}
+		if val := m.GetOrInsert("key", 100); val != 42 {
+			t.Errorf("expected 42, got %d", val)
+		}
+	})
+
+	t.Run("preserves order of insertions", func(t *testing.T) {
+		m := NewMap[string, int]()
+		m.GetOrInsert("first", 1)
+		m.GetOrInsert("second", 2)
+		m.GetOrInsert("third", 3)
+
+		if m.Size() != 3 {
+			t.Errorf("expected size 3, got %d", m.Size())
+		}
+	})
+}
+
+func TestGetOrInsertComputed(t *testing.T) {
+	t.Run("returns existing value", func(t *testing.T) {
+		m := NewMap[string, int]()
+		m.Set("key", 42)
+
+		if val := m.GetOrInsertComputed("key", func() int { return 100 }); val != 42 {
+			t.Errorf("expected 42, got %d", val)
+		}
+	})
+
+	t.Run("computes and inserts new value for missing key", func(t *testing.T) {
+		m := NewMap[string, int]()
+
+		if val := m.GetOrInsertComputed("key", func() int { return 42 }); val != 42 {
+			t.Errorf("expected 42, got %d", val)
+		}
+
+		if val := m.GetOrInsertComputed("key", func() int { return 100 }); val != 42 {
+			t.Errorf("expected 42 (existing), got %d", val)
+		}
+	})
+
+	t.Run("initializes nil map", func(t *testing.T) {
+		var m Map[string, int]
+		if val := m.GetOrInsertComputed("key", func() int { return 42 }); val != 42 {
+			t.Errorf("expected 42, got %d", val)
+		}
+		if val := m.GetOrInsertComputed("key", func() int { return 100 }); val != 42 {
+			t.Errorf("expected 42, got %d", val)
+		}
+	})
+
+	t.Run("uses fn only once per key", func(t *testing.T) {
+		count := 0
+		m := NewMap[string, int]()
+
+		m.GetOrInsertComputed("key", func() int {
+			count++
+			return 42
+		})
+
+		if count != 1 {
+			t.Errorf("expected fn to be called once, got %d", count)
+		}
+	})
+}

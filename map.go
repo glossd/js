@@ -128,3 +128,32 @@ func (m Map[K, V]) ForEachUntil(fn func(value V, key K) bool) {
 func (m Map[K, V]) Size() int {
 	return len(m)
 }
+
+// GetOrInsert returns the value associated with the key if it exists.
+// Otherwise, it inserts the key with the given value and returns that value.
+// The receiver is modified if the key was not present.
+func (m *Map[K, V]) GetOrInsert(key K, value V) V {
+	if *m == nil {
+		*m = make(Map[K, V])
+	}
+	if v, ok := (*m)[key]; ok {
+		return v
+	}
+	(*m)[key] = value
+	return value
+}
+
+// GetOrInsertComputed returns the value associated with the key if it exists.
+// Otherwise, it calls fn to compute a value, inserts the key with that value,
+// and returns the computed value. The receiver is modified if the key was not present.
+func (m *Map[K, V]) GetOrInsertComputed(key K, fn func() V) V {
+	if *m == nil {
+		*m = make(Map[K, V])
+	}
+	if v, ok := (*m)[key]; ok {
+		return v
+	}
+	v := fn()
+	(*m)[key] = v
+	return v
+}

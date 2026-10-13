@@ -120,6 +120,10 @@ aFruits := ArrayFrom(fruits.Values()).Filter(func(v string) bool { return string
 | Values | `Values() iter.Seq[V]` | Returns an iterator over the values |
 | Entries | `Entries() iter.Seq[Entry[K, V]]` | Returns an iterator over key-value entries |
 | Size | `Size() int` | Returns the number of elements |
+| GetOrInsert | `GetOrInsert(key K, value V) V` | Returns the value for the key if it exists, otherwise inserts and returns the given value |
+| GetOrInsertComputed | `GetOrInsertComputed(key K, fn func() V) V` | Returns the value for the key if it exists, otherwise computes, inserts, and returns the value |
+| ForEach | `ForEach(fn func(value V, key K))` | Calls fn once for each key/value pair |
+| ForEachUntil | `ForEachUntil(fn func(value V, key K) bool)` | Calls fn once for each key/value pair, stopping when fn returns false |
 
 ### Package-level functions
 
