@@ -1,4 +1,4 @@
-# JavaScript Data Structures in Go
+# JS ES6 Data Structures in Go
 
 Go 1.27 introduced generic methods, allowing existence of the most popular methods such as **Map**, **FlatMap**, and **Reduce**.
 

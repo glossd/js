@@ -162,3 +162,382 @@ func TestSet_NaNKey(t *testing.T) {
 		t.Fatal("Go map semantics: NaN is never found")
 	}
 }
+
+func TestSet_IsSubsetOf(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     Set[int]
+		expected bool
+	}{
+		{"proper subset", NewSet(1, 2), NewSet(1, 2, 3), true},
+		{"equal sets", NewSet(1, 2, 3), NewSet(1, 2, 3), true},
+		{"empty of non-empty", NewSet[int](), NewSet(1), true},
+		{"empty of empty", NewSet[int](), NewSet[int](), true},
+		{"non-empty of empty", NewSet(1), NewSet[int](), false},
+		{"superset is not subset", NewSet(1, 2, 3), NewSet(1, 2), false},
+		{"partial overlap", NewSet(1, 4), NewSet(1, 2, 3), false},
+		{"same size, different values", NewSet(1, 2), NewSet(3, 4), false},
+		{"disjoint", NewSet(1), NewSet(2, 3), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.a.IsSubsetOf(tt.b); got != tt.expected {
+				t.Fatalf("%v.IsSubsetOf(%v) = %v, want %v", tt.a, tt.b, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSet_IsSupersetOf(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     Set[int]
+		expected bool
+	}{
+		{"proper superset", NewSet(1, 2, 3), NewSet(1, 2), true},
+		{"equal sets", NewSet(1, 2, 3), NewSet(1, 2, 3), true},
+		{"non-empty of empty", NewSet(1), NewSet[int](), true},
+		{"empty of empty", NewSet[int](), NewSet[int](), true},
+		{"empty of non-empty", NewSet[int](), NewSet(1), false},
+		{"subset is not superset", NewSet(1, 2), NewSet(1, 2, 3), false},
+		{"partial overlap", NewSet(1, 2, 3), NewSet(1, 4), false},
+		{"same size, different values", NewSet(1, 2), NewSet(3, 4), false},
+		{"disjoint", NewSet(2, 3), NewSet(1), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.a.IsSupersetOf(tt.b); got != tt.expected {
+				t.Fatalf("%v.IsSupersetOf(%v) = %v, want %v", tt.a, tt.b, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSet_IsDisjointFrom(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     Set[int]
+		expected bool
+	}{
+		{"no common values", NewSet(1, 2), NewSet(3, 4), true},
+		{"one common value", NewSet(1, 2), NewSet(2, 3), false},
+		{"equal sets", NewSet(1, 2), NewSet(1, 2), false},
+		{"subset", NewSet(1), NewSet(1, 2, 3), false},
+		{"superset", NewSet(1, 2, 3), NewSet(2), false},
+		{"empty and non-empty", NewSet[int](), NewSet(1), true},
+		{"non-empty and empty", NewSet(1), NewSet[int](), true},
+		{"empty and empty", NewSet[int](), NewSet[int](), true},
+		{"small disjoint from large", NewSet(100), NewSet(1, 2, 3, 4, 5), true},
+		{"large disjoint from small", NewSet(1, 2, 3, 4, 5), NewSet(100), true},
+		{"small overlaps large", NewSet(5), NewSet(1, 2, 3, 4, 5), false},
+		{"large overlaps small", NewSet(1, 2, 3, 4, 5), NewSet(5), false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.a.IsDisjointFrom(tt.b); got != tt.expected {
+				t.Fatalf("%v.IsDisjointFrom(%v) = %v, want %v", tt.a, tt.b, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSet_SetRelationsAreSymmetricWhereExpected(t *testing.T) {
+	a, b := NewSet(1, 2), NewSet(1, 2, 3)
+
+	if !a.IsSubsetOf(b) || !b.IsSupersetOf(a) {
+		t.Fatal("a ⊂ b should imply b ⊃ a")
+	}
+	if a.IsDisjointFrom(b) != b.IsDisjointFrom(a) {
+		t.Fatal("IsDisjointFrom should be symmetric")
+	}
+}
+
+func TestSet_RelationsDoNotMutate(t *testing.T) {
+	a, b := NewSet(1, 2), NewSet(2, 3)
+
+	a.IsSubsetOf(b)
+	a.IsSupersetOf(b)
+	a.IsDisjointFrom(b)
+
+	if len(a) != 2 || !a.Has(1) || !a.Has(2) {
+		t.Fatalf("receiver was mutated: %v", a)
+	}
+	if len(b) != 2 || !b.Has(2) || !b.Has(3) {
+		t.Fatalf("argument was mutated: %v", b)
+	}
+}
+
+func TestSet_RelationsWithNilSet(t *testing.T) {
+	var nilSet Set[int]
+	s := NewSet(1, 2)
+
+	if !nilSet.IsSubsetOf(s) {
+		t.Fatal("nil set is a subset of any set")
+	}
+	if !s.IsSupersetOf(nilSet) {
+		t.Fatal("any set is a superset of nil set")
+	}
+	if !nilSet.IsDisjointFrom(s) || !s.IsDisjointFrom(nilSet) {
+		t.Fatal("nil set is disjoint from any set")
+	}
+	if s.IsSubsetOf(nilSet) {
+		t.Fatal("non-empty set is not a subset of nil set")
+	}
+}
+
+func equalSets[T comparable](a, b Set[T]) bool {
+	return a.IsSubsetOf(b) && b.IsSubsetOf(a)
+}
+
+func TestSet_Union(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     Set[int]
+		expected Set[int]
+	}{
+		{"disjoint", NewSet(1, 2), NewSet(3, 4), NewSet(1, 2, 3, 4)},
+		{"overlapping", NewSet(1, 2, 3), NewSet(3, 4), NewSet(1, 2, 3, 4)},
+		{"equal sets", NewSet(1, 2), NewSet(1, 2), NewSet(1, 2)},
+		{"subset", NewSet(1), NewSet(1, 2, 3), NewSet(1, 2, 3)},
+		{"empty and non-empty", NewSet[int](), NewSet(1, 2), NewSet(1, 2)},
+		{"non-empty and empty", NewSet(1, 2), NewSet[int](), NewSet(1, 2)},
+		{"empty and empty", NewSet[int](), NewSet[int](), NewSet[int]()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.a.Union(tt.b)
+			if !equalSets(got, tt.expected) {
+				t.Fatalf("%v.Union(%v) = %v, want %v", tt.a, tt.b, got, tt.expected)
+			}
+			if rev := tt.b.Union(tt.a); !equalSets(rev, tt.expected) {
+				t.Fatalf("Union should be commutative: got %v, want %v", rev, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSet_Intersection(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     Set[int]
+		expected Set[int]
+	}{
+		{"disjoint", NewSet(1, 2), NewSet(3, 4), NewSet[int]()},
+		{"overlapping", NewSet(1, 2, 3), NewSet(3, 4, 2), NewSet(2, 3)},
+		{"equal sets", NewSet(1, 2), NewSet(1, 2), NewSet(1, 2)},
+		{"subset", NewSet(1), NewSet(1, 2, 3), NewSet(1)},
+		{"superset", NewSet(1, 2, 3), NewSet(1), NewSet(1)},
+		{"empty and non-empty", NewSet[int](), NewSet(1, 2), NewSet[int]()},
+		{"non-empty and empty", NewSet(1, 2), NewSet[int](), NewSet[int]()},
+		{"empty and empty", NewSet[int](), NewSet[int](), NewSet[int]()},
+		{"small in large", NewSet(5), NewSet(1, 2, 3, 4, 5), NewSet(5)},
+		{"large with small", NewSet(1, 2, 3, 4, 5), NewSet(5), NewSet(5)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.a.Intersection(tt.b)
+			if !equalSets(got, tt.expected) {
+				t.Fatalf("%v.Intersection(%v) = %v, want %v", tt.a, tt.b, got, tt.expected)
+			}
+			if rev := tt.b.Intersection(tt.a); !equalSets(rev, tt.expected) {
+				t.Fatalf("Intersection should be commutative: got %v, want %v", rev, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSet_UnionIntersectionReturnNewSets(t *testing.T) {
+	a, b := NewSet(1, 2), NewSet(2, 3)
+
+	u := a.Union(b)
+	i := a.Intersection(b)
+
+	// Inputs are untouched.
+	if !equalSets(a, NewSet(1, 2)) || !equalSets(b, NewSet(2, 3)) {
+		t.Fatalf("inputs were mutated: a=%v b=%v", a, b)
+	}
+
+	// Results are independent of the inputs and of each other.
+	u.Add(99)
+	i.Add(98)
+	if a.Has(99) || b.Has(99) || a.Has(98) || b.Has(98) {
+		t.Fatal("mutating a result must not affect the inputs")
+	}
+	if u.Has(98) || i.Has(99) {
+		t.Fatal("results must be independent of each other")
+	}
+}
+
+func TestSet_UnionIntersectionWithSelfAndNil(t *testing.T) {
+	var nilSet Set[int]
+	s := NewSet(1, 2)
+
+	if !equalSets(s.Union(s), s) || !equalSets(s.Intersection(s), s) {
+		t.Fatal("union and intersection with self should equal self")
+	}
+
+	u := nilSet.Union(s)
+	if !equalSets(u, s) {
+		t.Fatalf("nil.Union(s) = %v, want %v", u, s)
+	}
+	// The result must be a usable, writable set even when built from nil.
+	u.Add(3)
+
+	n := nilSet.Union(nilSet)
+	if n == nil || len(n) != 0 {
+		t.Fatalf("nil.Union(nil) should be a non-nil empty set, got %#v", n)
+	}
+	n.Add(1) // must not panic
+
+	if i := nilSet.Intersection(s); i == nil || len(i) != 0 {
+		t.Fatalf("nil.Intersection(s) should be a non-nil empty set, got %#v", i)
+	}
+}
+
+func TestSet_AlgebraicLaws(t *testing.T) {
+	a, b := NewSet(1, 2, 3), NewSet(3, 4)
+
+	u, i := a.Union(b), a.Intersection(b)
+
+	if !a.IsSubsetOf(u) || !b.IsSubsetOf(u) {
+		t.Fatal("both operands should be subsets of their union")
+	}
+	if !i.IsSubsetOf(a) || !i.IsSubsetOf(b) {
+		t.Fatal("the intersection should be a subset of both operands")
+	}
+	if len(u)+len(i) != len(a)+len(b) {
+		t.Fatalf("|A∪B| + |A∩B| should equal |A| + |B|: %d + %d != %d + %d", len(u), len(i), len(a), len(b))
+	}
+}
+
+func TestSet_Difference(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     Set[int]
+		expected Set[int]
+	}{
+		{"disjoint", NewSet(1, 2), NewSet(3, 4), NewSet(1, 2)},
+		{"overlapping", NewSet(1, 2, 3), NewSet(2, 3, 4), NewSet(1)},
+		{"equal sets", NewSet(1, 2), NewSet(1, 2), NewSet[int]()},
+		{"subset minus superset", NewSet(1, 2), NewSet(1, 2, 3), NewSet[int]()},
+		{"superset minus subset", NewSet(1, 2, 3), NewSet(2), NewSet(1, 3)},
+		{"empty minus non-empty", NewSet[int](), NewSet(1), NewSet[int]()},
+		{"non-empty minus empty", NewSet(1, 2), NewSet[int](), NewSet(1, 2)},
+		{"empty minus empty", NewSet[int](), NewSet[int](), NewSet[int]()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.a.Difference(tt.b)
+			if !equalSets(got, tt.expected) {
+				t.Fatalf("%v.Difference(%v) = %v, want %v", tt.a, tt.b, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSet_DifferenceIsNotCommutative(t *testing.T) {
+	a, b := NewSet(1, 2, 3), NewSet(3, 4)
+
+	if got := a.Difference(b); !equalSets(got, NewSet(1, 2)) {
+		t.Fatalf("a-b = %v, want {1 2}", got)
+	}
+	if got := b.Difference(a); !equalSets(got, NewSet(4)) {
+		t.Fatalf("b-a = %v, want {4}", got)
+	}
+}
+
+func TestSet_SymmetricDifference(t *testing.T) {
+	tests := []struct {
+		name     string
+		a, b     Set[int]
+		expected Set[int]
+	}{
+		{"disjoint", NewSet(1, 2), NewSet(3, 4), NewSet(1, 2, 3, 4)},
+		{"overlapping", NewSet(1, 2, 3), NewSet(3, 4), NewSet(1, 2, 4)},
+		{"equal sets", NewSet(1, 2), NewSet(1, 2), NewSet[int]()},
+		{"subset", NewSet(1, 2), NewSet(1, 2, 3), NewSet(3)},
+		{"superset", NewSet(1, 2, 3), NewSet(2), NewSet(1, 3)},
+		{"empty and non-empty", NewSet[int](), NewSet(1, 2), NewSet(1, 2)},
+		{"non-empty and empty", NewSet(1, 2), NewSet[int](), NewSet(1, 2)},
+		{"empty and empty", NewSet[int](), NewSet[int](), NewSet[int]()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.a.SymmetricDifference(tt.b)
+			if !equalSets(got, tt.expected) {
+				t.Fatalf("%v.SymmetricDifference(%v) = %v, want %v", tt.a, tt.b, got, tt.expected)
+			}
+			if rev := tt.b.SymmetricDifference(tt.a); !equalSets(rev, tt.expected) {
+				t.Fatalf("SymmetricDifference should be commutative: got %v, want %v", rev, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSet_DifferenceReturnNewSets(t *testing.T) {
+	a, b := NewSet(1, 2, 3), NewSet(3, 4)
+
+	d := a.Difference(b)
+	sd := a.SymmetricDifference(b)
+
+	if !equalSets(a, NewSet(1, 2, 3)) || !equalSets(b, NewSet(3, 4)) {
+		t.Fatalf("inputs were mutated: a=%v b=%v", a, b)
+	}
+
+	d.Add(99)
+	sd.Add(98)
+	if a.Has(99) || b.Has(99) || a.Has(98) || b.Has(98) {
+		t.Fatal("mutating a result must not affect the inputs")
+	}
+	if d.Has(98) || sd.Has(99) {
+		t.Fatal("results must be independent of each other")
+	}
+}
+
+func TestSet_DifferenceWithSelfAndNil(t *testing.T) {
+	var nilSet Set[int]
+	s := NewSet(1, 2)
+
+	if d := s.Difference(s); d == nil || len(d) != 0 {
+		t.Fatalf("s.Difference(s) should be a non-nil empty set, got %#v", d)
+	}
+	if sd := s.SymmetricDifference(s); sd == nil || len(sd) != 0 {
+		t.Fatalf("s.SymmetricDifference(s) should be a non-nil empty set, got %#v", sd)
+	}
+
+	if d := nilSet.Difference(s); d == nil || len(d) != 0 {
+		t.Fatalf("nil.Difference(s) should be a non-nil empty set, got %#v", d)
+	}
+	if d := s.Difference(nilSet); !equalSets(d, s) {
+		t.Fatalf("s.Difference(nil) = %v, want %v", d, s)
+	}
+
+	sd := nilSet.SymmetricDifference(s)
+	if !equalSets(sd, s) {
+		t.Fatalf("nil.SymmetricDifference(s) = %v, want %v", sd, s)
+	}
+	sd.Add(3) // result must be writable
+
+	if sd := nilSet.SymmetricDifference(nilSet); sd == nil || len(sd) != 0 {
+		t.Fatalf("nil.SymmetricDifference(nil) should be a non-nil empty set, got %#v", sd)
+	}
+}
+
+func TestSet_DifferenceIdentities(t *testing.T) {
+	a, b := NewSet(1, 2, 3), NewSet(3, 4)
+
+	// A △ B == (A \ B) ∪ (B \ A) == (A ∪ B) \ (A ∩ B)
+	sd := a.SymmetricDifference(b)
+	viaDiffs := a.Difference(b).Union(b.Difference(a))
+	viaUnion := a.Union(b).Difference(a.Intersection(b))
+
+	if !equalSets(sd, viaDiffs) {
+		t.Fatalf("A△B = %v, but (A\\B)∪(B\\A) = %v", sd, viaDiffs)
+	}
+	if !equalSets(sd, viaUnion) {
+		t.Fatalf("A△B = %v, but (A∪B)\\(A∩B) = %v", sd, viaUnion)
+	}
+	if !a.Difference(b).IsDisjointFrom(b) {
+		t.Fatal("A\\B should be disjoint from B")
+	}
+}

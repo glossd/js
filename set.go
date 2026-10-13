@@ -39,3 +39,103 @@ func (s Set[T]) Has(v T) bool {
 func (s Set[T]) Clear() {
 	clear(s)
 }
+
+// IsSubsetOf reports whether every value of s is also in other,
+// like JS `set.isSubsetOf(other)`. The empty set is a subset of every set,
+// and every set is a subset of itself.
+func (s Set[T]) IsSubsetOf(other Set[T]) bool {
+	if len(s) > len(other) {
+		return false
+	}
+	for v := range s {
+		if !other.Has(v) {
+			return false
+		}
+	}
+	return true
+}
+
+// IsSupersetOf reports whether every value of other is also in s,
+// like JS `set.isSupersetOf(other)`. Every set is a superset of the empty
+// set and of itself.
+func (s Set[T]) IsSupersetOf(other Set[T]) bool {
+	return other.IsSubsetOf(s)
+}
+
+// IsDisjointFrom reports whether s and other have no values in common,
+// like JS `set.isDisjointFrom(other)`. The empty set is disjoint from
+// every set.
+func (s Set[T]) IsDisjointFrom(other Set[T]) bool {
+	// Iterate the smaller set and probe the larger one.
+	small, large := s, other
+	if len(small) > len(large) {
+		small, large = large, small
+	}
+	for v := range small {
+		if large.Has(v) {
+			return false
+		}
+	}
+	return true
+}
+
+// Union returns a new set containing every value that is in s or in other,
+// like JS `set.union(other)`. Neither s nor other is modified.
+func (s Set[T]) Union(other Set[T]) Set[T] {
+	result := make(Set[T], len(s)+len(other))
+	for v := range s {
+		result.Add(v)
+	}
+	for v := range other {
+		result.Add(v)
+	}
+	return result
+}
+
+// Intersection returns a new set containing only the values that are in both
+// s and other, like JS `set.intersection(other)`. Neither s nor other is
+// modified.
+func (s Set[T]) Intersection(other Set[T]) Set[T] {
+	// Iterate the smaller set and probe the larger one.
+	small, large := s, other
+	if len(small) > len(large) {
+		small, large = large, small
+	}
+	result := Set[T]{}
+	for v := range small {
+		if large.Has(v) {
+			result.Add(v)
+		}
+	}
+	return result
+}
+
+// Difference returns a new set containing the values that are in s but not in
+// other, like JS `set.difference(other)`. Neither s nor other is modified.
+func (s Set[T]) Difference(other Set[T]) Set[T] {
+	result := Set[T]{}
+	for v := range s {
+		if !other.Has(v) {
+			result.Add(v)
+		}
+	}
+	return result
+}
+
+// SymmetricDifference returns a new set containing the values that are in
+// exactly one of s and other, like JS `set.symmetricDifference(other)`.
+// Neither s nor other is modified.
+func (s Set[T]) SymmetricDifference(other Set[T]) Set[T] {
+	result := Set[T]{}
+	for v := range s {
+		if !other.Has(v) {
+			result.Add(v)
+		}
+	}
+	for v := range other {
+		if !s.Has(v) {
+			result.Add(v)
+		}
+	}
+	return result
+}
