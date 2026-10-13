@@ -1,5 +1,7 @@
 package js
 
+import "iter"
+
 type Set[T comparable] map[T]struct{}
 
 func NewSet[T comparable](values ...T) Set[T] {
@@ -38,6 +40,18 @@ func (s Set[T]) Has(v T) bool {
 // Clear removes all values from the set, like JS `set.clear()`.
 func (s Set[T]) Clear() {
 	clear(s)
+}
+
+// ForEach executes a provided function once for each value in the set,
+// like JS Set.prototype.forEach. The receiver is never modified.
+func (s Set[T]) ForEach(callbackFn func(value T)) {
+	if s == nil || len(s) == 0 || callbackFn == nil {
+		return
+	}
+
+	for v := range s {
+		callbackFn(v)
+	}
 }
 
 // IsSubsetOf reports whether every value of s is also in other,
@@ -138,4 +152,23 @@ func (s Set[T]) SymmetricDifference(other Set[T]) Set[T] {
 		}
 	}
 	return result
+}
+
+// Values returns an iterator over the values of the set, like JS
+// `set.values()`. Use it with range-over-func:
+//
+//	for v := range s.Values() { ... }
+//
+// Unlike JS, which iterates in insertion order, the iteration order is
+// unspecified (it follows Go map iteration order) and may differ between
+// calls. Stopping early with break is safe, and values deleted from the set
+// during iteration that have not been reached yet will not be produced.
+func (s Set[T]) Values() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v := range s {
+			if !yield(v) {
+				return
+			}
+		}
+	}
 }

@@ -38,12 +38,21 @@ joined := js.Array[string](yourSlice).Join("-")
 myMap := NewMap[string, int]()
 myMap.Set("key1", 12)
 myMap.Set("key2", 123)
+
 sum := ArrayFrom(myMap.Values()).Reduce(func(acc int, e int) int { return acc + e })
 // sum == 135
 
 // the same map could be initiated with the helper functions.
 myMap := NewMap(E2("key1", 12, "key2", 123)...)
 // To keep the Map strongly typed, type Entry{Key, Val} had to be introduced to represent tuples in JS
+```
+
+#### Set can be converted to Values, the same way as in JS
+```go 
+fruits := NewSet("apple", "banana", "avocado")
+aFruits := ArrayFrom(fruits.Values()).Filter(func(v string) bool { return strings.HasPrefix(v, "a") })
+
+// aFruies == ["apple", "avocado"]
 ```
 
 ---
@@ -124,6 +133,30 @@ myMap := NewMap(E2("key1", 12, "key2", 123)...)
 |----------|-------------|
 | `E[K comparable, V any](key K, value V) Entry[K, V]` | Creates a single entry |
 | `E2`, `E3`, `E4`, `E5`, `E6`, `E7`, `E8`, `E9` | Create multiple entries at once |
+
+### Set
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `NewSet[T comparable](values ...T) Set[T]` | Creates a Set from values |
+| `Size()` | Returns the number of elements |
+| `Add(v T) Set[T]` | Inserts v into the set (no-op if already present) |
+| `Delete(v T) bool` | Removes v from the set, returns whether it was present |
+| `Has(v T) bool` | Reports whether v is in the set |
+| `Clear()` | Removes all values from the set |
+| `IsSubsetOf(other Set[T]) bool` | Reports whether every value of s is also in other |
+| `IsSupersetOf(other Set[T]) bool` | Reports whether every value of other is also in s |
+| `IsDisjointFrom(other Set[T]) bool` | Reports whether s and other have no values in common |
+| `Union(other Set[T]) Set[T]` | Returns a new set containing every value that is in s or in other |
+| `Intersection(other Set[T]) Set[T]` | Returns a new set containing only the values that are in both s and other |
+| `Difference(other Set[T]) Set[T]` | Returns a new set containing the values that are in s but not in other |
+| `SymmetricDifference(other Set[T]) Set[T]` | Returns a new set containing the values that are in exactly one of s and other |
+
+### Package-level functions
+
+| Function                                        | Description               |
+|-------------------------------------------------|---------------------------|
+| `NewSet[T comparable](values ...T) Set[T]` | Creates a Set from values |
 
 ---
 

@@ -1,6 +1,21 @@
 package js
 
-import "testing"
+import (
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
+)
+
+func TestSet_Readme(t *testing.T) {
+	fruits := NewSet("apple", "banana", "avocado")
+
+	aFruits := ArrayFrom(fruits.Values()).Filter(func(v string) bool { return strings.HasPrefix(v, "a") })
+
+	if !reflect.DeepEqual(ArrayOf("apple", "avocado"), aFruits) {
+		t.Errorf("aFruits not equal")
+	}
+}
 
 func TestSet_Size(t *testing.T) {
 	if NewSet(1, 2, 3).Size() != 3 {
@@ -539,5 +554,134 @@ func TestSet_DifferenceIdentities(t *testing.T) {
 	}
 	if !a.Difference(b).IsDisjointFrom(b) {
 		t.Fatal("A\\B should be disjoint from B")
+	}
+}
+
+func TestSet_Values(t *testing.T) {
+	s := NewSet(3, 1, 2)
+
+	var got []int
+	for v := range s.Values() {
+		got = append(got, v)
+	}
+	slices.Sort(got) // iteration order is unspecified
+
+	if want := []int{1, 2, 3}; !slices.Equal(got, want) {
+		t.Fatalf("Values() yielded %v, want %v", got, want)
+	}
+}
+
+func TestSet_ValuesEmptyAndNil(t *testing.T) {
+	var nilSet Set[int]
+
+	for _, s := range []Set[int]{nilSet, NewSet[int]()} {
+		for v := range s.Values() {
+			t.Fatalf("empty set yielded %v", v)
+		}
+		if got := slices.Collect(s.Values()); len(got) != 0 {
+			t.Fatalf("Collect on empty set = %v, want empty", got)
+		}
+	}
+}
+
+func TestSet_ValuesYieldsEachValueOnce(t *testing.T) {
+	s := Set[int]{}
+	for i := range 1000 {
+		s.Add(i % 100) // duplicates collapse
+	}
+
+	seen := map[int]int{}
+	for v := range s.Values() {
+		seen[v]++
+	}
+
+	if len(seen) != 100 {
+		t.Fatalf("yielded %d distinct values, want 100", len(seen))
+	}
+	for v, n := range seen {
+		if n != 1 {
+			t.Fatalf("value %d yielded %d times, want 1", v, n)
+		}
+	}
+}
+
+func TestSet_ValuesEarlyBreak(t *testing.T) {
+	s := NewSet(1, 2, 3, 4, 5)
+
+	count := 0
+	for range s.Values() {
+		count++
+		if count == 2 {
+			break
+		}
+	}
+	if count != 2 {
+		t.Fatalf("expected loop to stop after 2 values, ran %d", count)
+	}
+
+	// Calling the iterator function directly: it must stop once yield
+	// returns false.
+	calls := 0
+	s.Values()(func(int) bool {
+		calls++
+		return false
+	})
+	if calls != 1 {
+		t.Fatalf("yield called %d times after returning false, want 1", calls)
+	}
+}
+
+func TestSet_ValuesIsReusable(t *testing.T) {
+	s := NewSet(1, 2, 3)
+	seq := s.Values()
+
+	first := slices.Sorted(seq)
+	second := slices.Sorted(seq)
+
+	if !slices.Equal(first, second) || len(first) != 3 {
+		t.Fatalf("iterator should be re-iterable: %v then %v", first, second)
+	}
+}
+
+func TestSet_ValuesSeesLiveSet(t *testing.T) {
+	s := NewSet(1, 2)
+	seq := s.Values()
+
+	s.Add(3)
+
+	if got := slices.Sorted(seq); !slices.Equal(got, []int{1, 2, 3}) {
+		t.Fatalf("iterator should reflect the current set, got %v", got)
+	}
+}
+
+func TestSet_ValuesDeleteDuringIteration(t *testing.T) {
+	s := NewSet(1, 2, 3, 4, 5)
+
+	// Deleting every visited value while iterating is safe and visits
+	// each value exactly once.
+	visited := 0
+	for v := range s.Values() {
+		visited++
+		s.Delete(v)
+	}
+
+	if visited != 5 {
+		t.Fatalf("visited %d values, want 5", visited)
+	}
+	if len(s) != 0 {
+		t.Fatalf("set should be empty after deleting during iteration, got %v", s)
+	}
+}
+
+func TestSet_ValuesRoundTrip(t *testing.T) {
+	a := NewSet("x", "y", "z")
+
+	b := Set[string]{}
+	for v := range a.Values() {
+		b.Add(v)
+	}
+
+	if !equalSets(a, b) {
+		t.Fatalf("rebuilding from Values() gave %v, want %v", b, a)
 	}
 }
