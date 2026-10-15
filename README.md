@@ -1,4 +1,5 @@
-# JS ES6 Data Structures in Go
+# JS Data Structures in Go
+
 
 Go 1.27 introduced generic methods, allowing existence of the most popular methods such as **Map**, **FlatMap**, and **Reduce**.
 
@@ -19,6 +20,12 @@ total := js.ArrayOf("10", "abc", "25.5", "  42  ").
 // total == 77.5
 ```
 
+## Installing
+It requires Go version **1.27** or above.
+```shell
+go get github.com/glossd/js
+```
+
 #### If you want, you can still do normal loops
 ```go
 for i, v := range js.ArrayOf(1, 2, 3) {
@@ -35,22 +42,22 @@ joined := js.Array[string](yourSlice).Join("-")
 
 #### Map can be converted to Entries, Values, Keys the same way as in JS
 ```go 
-myMap := NewMap[string, int]()
+myMap := js.NewMap[string, int]()
 myMap.Set("key1", 12)
 myMap.Set("key2", 123)
 
-sum := ArrayFrom(myMap.Values()).Reduce(func(acc int, e int) int { return acc + e })
+sum := js.ArrayFrom(myMap.Values()).Reduce(func(acc int, e int) int { return acc + e })
 // sum == 135
 
 // the same map could be initiated with the helper functions.
-myMap := NewMap(E2("key1", 12, "key2", 123)...)
+myMap := js.NewMap(E2("key1", 12, "key2", 123)...)
 // To keep the Map strongly typed, type Entry{Key, Val} had to be introduced to represent tuples in JS
 ```
 
 #### Set can be converted to Values, the same way as in JS
 ```go 
-fruits := NewSet("apple", "banana", "avocado")
-aFruits := ArrayFrom(fruits.Values()).Filter(func(v string) bool { return strings.HasPrefix(v, "a") })
+fruits := js.NewSet("apple", "banana", "avocado")
+aFruits := js.ArrayFrom(fruits.Values()).Filter(func(v string) bool { return strings.HasPrefix(v, "a") })
 
 // aFruies == ["apple", "avocado"]
 ```

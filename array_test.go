@@ -31,8 +31,8 @@ func TestArray_Readme(t *testing.T) {
 		}
 
 		res := ArrayOf(shoppingCart...).
-			Filter(func(v Item) bool { return v.Keep }). // Step 1: Keep only checked items
-			Map(func(v Item) float64 { return v.Price * 0.9 }). // Step 2: Apply 10% discount
+			Filter(func(v Item) bool { return v.Keep }).                            // Step 1: Keep only checked items
+			Map(func(v Item) float64 { return v.Price * 0.9 }).                     // Step 2: Apply 10% discount
 			Reduce(func(sum float64, price float64) float64 { return sum + price }) // Step 3: Accumulate the total
 
 		expected := 1008.0
