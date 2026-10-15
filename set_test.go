@@ -1,7 +1,6 @@
 package js
 
 import (
-	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -12,7 +11,7 @@ func TestSet_Readme(t *testing.T) {
 
 	aFruits := ArrayFrom(fruits.Values()).Filter(func(v string) bool { return strings.HasPrefix(v, "a") })
 
-	if !reflect.DeepEqual(ArrayOf("apple", "avocado"), aFruits) {
+	if !slices.Equal(ArrayOf("apple", "avocado"), aFruits) {
 		t.Errorf("aFruits not equal")
 	}
 }

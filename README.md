@@ -1,10 +1,15 @@
 # JS Data Structures in Go
 
+[![Go Version](https://img.shields.io/badge/Go-1.27%2B-blue)](https://golang.org/) [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Go 1.27 introduced generic methods, allowing existence of the most popular methods such as **Map**, **FlatMap**, and **Reduce**.
+A Go library that mirrors JavaScript's Array, Map, and Set data structures with their native methods.
 
-#### Here is a simple example of processing an array of text inputs
+## Why?
+
+Go 1.27 introduced generic methods, enabling a faithful port of JavaScript's most popular array/map methods like **Map**, **FlatMap**, and **Reduce**.
+
 ```go
+// Convert string inputs to numbers and sum them
 convertToNumber := func(s string) *float64 {
     value, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
     if err != nil {
@@ -12,6 +17,7 @@ convertToNumber := func(s string) *float64 {
     }
     return &value
 }
+
 total := js.ArrayOf("10", "abc", "25.5", "  42  ").
     Map(convertToNumber).
     Filter(func(n *float64) bool { return n != nil }).
@@ -20,157 +26,205 @@ total := js.ArrayOf("10", "abc", "25.5", "  42  ").
 // total == 77.5
 ```
 
-## Installing
-It requires Go version **1.27** or above.
+## Installation
+
 ```shell
 go get github.com/glossd/js
 ```
 
-#### If you want, you can still do normal loops
+Requires Go 1.27 or higher.
+
+---
+
+## Quick Start
+
+### Cast and use with native Go slices/maps
+
 ```go
+// Convert a slice to Array
+yourSlice := []string{"hello", "world"}
+joined := js.Array[string](yourSlice).Join("-")
+// joined == "hello-world"
+```
+
+### For...of style iteration
+
+```go
+// Normal Go range loop is still supported
 for i, v := range js.ArrayOf(1, 2, 3) {
-	...
+    fmt.Printf("index %d: %d\n", i, v)
 }
 ```
 
-#### You can cast Go slices and maps to access the methods.
+### Create a Map
+
 ```go
-yourSlice := []string{"hello", "world"}
-joined := js.Array[string](yourSlice).Join("-")
-// joined == "hello-world" 
-```
-
-#### Map can be converted to Entries, Values, Keys the same way as in JS
-```go 
 myMap := js.NewMap[string, int]()
-myMap.Set("key1", 12)
-myMap.Set("key2", 123)
+myMap.Set("key1", 12).Set("key2", 123)
 
-sum := js.ArrayFrom(myMap.Values()).Reduce(func(acc int, e int) int { return acc + e })
-// sum == 135
+// Get a value (returns zero value and false if not found)
+if val, ok := myMap.Get("key1"); ok {
+    fmt.Println("key1:", val)
+}
 
-// the same map could be initiated with the helper functions.
-myMap := js.NewMap(E2("key1", 12, "key2", 123)...)
-// To keep the Map strongly typed, type Entry{Key, Val} had to be introduced to represent tuples in JS
+// Check existence
+if myMap.Has("key1") {
+    fmt.Println("key1 exists!")
+}
 ```
 
-#### Set can be converted to Values, the same way as in JS
-```go 
+### Create a Set
+
+```go
 fruits := js.NewSet("apple", "banana", "avocado")
-aFruits := js.ArrayFrom(fruits.Values()).Filter(func(v string) bool { return strings.HasPrefix(v, "a") })
 
-// aFruies == ["apple", "avocado"]
+if fruits.Has("apple") {
+    fmt.Println("apple is in the set!")
+}
+```
+
+### Convert iterators to Arrays/Sets
+
+```go
+// Map keys/values/entries to Array
+sum := js.ArrayFrom(myMap.Values()).Reduce(func(acc, v int) int {
+    return acc + v
+}, 0)
+
+// Array from Map entries
+for entry := range myMap.Entries() {
+    fmt.Println(entry.Key, entry.Val)
+}
+
+// Set from values
+aFruits := js.ArrayFrom(fruits.Values()).
+    Filter(func(v string) bool { return strings.HasPrefix(v, "a") })
+// ["apple", "avocado"]
 ```
 
 ---
 
-## Array
+## API Reference
+
+### Array
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| Length | `Length() int` | Returns the number of elements |
-| Push | `Push(values ...T) int` | Adds elements to the end, returns new length |
-| Pop | `Pop() (val T, ok bool)` | Removes and returns the last element |
-| Shift | `Shift() (val T, ok bool)` | Removes and returns the first element |
-| Unshift | `Unshift(values ...T) int` | Adds elements to the beginning, returns new length |
-| Splice | `Splice(start, deleteCount int, items ...T) Array[T]` | Removes/inserts elements in place |
-| Sort | `Sort(compareFn ...func(a, b T) int) *Array[T]` | Sorts in place, returns the array |
-| Reverse | `Reverse() *Array[T]` | Reverses in place, returns the array |
-| Fill | `Fill(value T, bounds ...int) *Array[T]` | Fills a range with a value, returns the array |
-| CopyWithin | `CopyWithin(target int, bounds ...int) *Array[T]` | Copies within the array, returns the array |
-| Filter | `Filter(callbackFn func(element T) bool) Array[T]` | Returns a new array of filtered elements |
-| Map | `Map[R any](callbackFn func(element T) R) Array[R]` | Returns a new array of transformed elements |
-| FlatMap | `FlatMap[R any](callbackFn func(element T) Array[R]) Array[R]` | Returns a new array formed by applying and flattening |
-| Reduce | `Reduce[R any](callbackFn func(accumulator R, element T) R, initialValue ...R) R` | Reduces the array to a single value |
-| ReduceRight | `ReduceRight[R any](callbackFn func(accumulator R, element T) R, initialValue ...R) R` | Reduces from right to left |
-| ForEach | `ForEach(callbackFn func(element T))` | Executes a function for each element |
-| Every | `Every(callbackFn func(element T) bool) bool` | Tests whether all elements pass a test |
-| Some | `Some(callbackFn func(element T) bool) bool` | Tests whether at least one element passes |
-| Concat | `Concat(items ...Array[T]) Array[T]` | Merges arrays into a new array |
-| Slice | `Slice(bounds ...int) Array[T]` | Returns a shallow copy of a portion |
-| Flat | `Flat(depth ...int) Array[any]` | Flattens nested arrays |
-| ToSorted | `ToSorted(compare func(a, b T) int) Array[T]` | Returns a sorted copy |
-| ToReversed | `ToReversed() Array[T]` | Returns a reversed copy |
-| ToSpliced | `ToSpliced(start, deleteCount int, items ...T) Array[T]` | Returns a copy with removed/inserted elements |
-| With | `With(index int, value T) Array[T]` | Returns a copy with element at index replaced |
-| Find | `Find(predicate func(value T) bool) (T, bool)` | Returns the first element matching the predicate |
-| FindLast | `FindLast(predicate func(value T) bool) (T, bool)` | Returns the last element matching the predicate |
-| Includes | `Includes(searchElement T, fromIndex ...int) bool` | Tests whether an array contains a value |
-| At | `At(index int) (T, bool)` | Returns the element at the given index |
-| FindIndex | `FindIndex(predicate func(value T) bool) int` | Returns the index of the first match, or -1 |
-| FindLastIndex | `FindLastIndex(predicate func(value T) bool) int` | Returns the index of the last match, or -1 |
-| IndexOf | `IndexOf(searchElement T, fromIndex ...int) int` | Returns the first index of an element, or -1 |
-| LastIndexOf | `LastIndexOf(searchElement T, fromIndex ...int) int` | Returns the last index of an element, or -1 |
-| Join | `Join(separator ...string) string` | Joins all elements into a string |
-| Keys | `Keys() iter.Seq[int]` | Returns an iterator over the indices |
-| Values | `Values() iter.Seq[T]` | Returns an iterator over the elements |
-| Entries | `Entries() iter.Seq[Entry[int, T]]` | Returns an iterator over index/value pairs |
-| ToString | `ToString() string` | Joins all elements into a string |
+| **Length** | `Length() int` | Returns the number of elements |
+| **Push** | `Push(values ...T) int` | Adds elements to the end |
+| **Pop** | `Pop() (T, bool)` | Removes and returns last element |
+| **Shift** | `Shift() (T, bool)` | Removes and returns first element |
+| **Unshift** | `Unshift(values ...T) int` | Adds elements to the beginning |
+| **Splice** | `Splice(start, deleteCount int, items ...T) Array[T]` | Removes/inserts elements in place |
+| **Sort** | `Sort(compareFn ...func(a, b T) int) *Array[T]` | Sorts in place |
+| **Reverse** | `Reverse() *Array[T]` | Reverses in place |
+| **Fill** | `Fill(value T, bounds ...int) *Array[T]` | Fills range with value |
+| **CopyWithin** | `CopyWithin(target int, bounds ...int) *Array[T]` | Copies within array |
+| **Filter** | `Filter(predicate func(T) bool) Array[T]` | Returns filtered copy |
+| **Map** | `Map[R any](fn func(T) R) Array[R]` | Returns transformed copy |
+| **FlatMap** | `FlatMap[R any](fn func(T) Array[R]) Array[R]` | Maps and flattens |
+| **Reduce** | `Reduce[R any](fn func(R, T) R, init ...R) R` | Reduces to single value |
+| **ReduceRight** | `ReduceRight[R any](fn func(R, T) R, init ...R) R` | Reduces from right |
+| **ForEach** | `ForEach(fn func(T))` | Executes for each element |
+| **Every** | `Every(fn func(T) bool) bool` | Tests if all pass |
+| **Some** | `Some(fn func(T) bool) bool` | Tests if any pass |
+| **Concat** | `Concat(items ...Array[T]) Array[T]` | Merges arrays |
+| **Slice** | `Slice(bounds ...int) Array[T]` | Returns portion |
+| **Flat** | `Flat(depth ...int) Array[any]` | Flattens nested arrays |
+| **At** | `At(index int) (T, bool)` | Gets element at index (supports negative) |
+| **Find** | `Find(predicate func(T) bool) (T, bool)` | Finds first matching element |
+| **FindLast** | `FindLast(predicate func(T) bool) (T, bool)` | Finds last matching element |
+| **FindIndex** | `FindIndex(predicate func(T) bool) int` | Index of first match, -1 if none |
+| **FindLastIndex** | `FindLastIndex(predicate func(T) bool) int` | Index of last match, -1 if none |
+| **Includes** | `Includes(search T, fromIndex ...int) bool` | Tests if value exists |
+| **IndexOf** | `IndexOf(search T, fromIndex ...int) int` | First index of value, -1 if none |
+| **LastIndexOf** | `LastIndexOf(search T, fromIndex ...int) int` | Last index of value, -1 if none |
+| **Join** | `Join(sep ...string) string` | Joins elements with separator |
+| **ToSorted** | `ToSorted(compare func(T, T) int) Array[T]` | Returns sorted copy |
+| **ToReversed** | `ToReversed() Array[T]` | Returns reversed copy |
+| **ToSpliced** | `ToSpliced(start, deleteCount int, items ...T) Array[T]` | Returns spliced copy |
+| **With** | `With(index int, value T) Array[T]` | Returns copy with element replaced |
+| **Keys** | `Keys() iter.Seq[int]` | Iterator over indices |
+| **Values** | `Values() iter.Seq[T]` | Iterator over elements |
+| **Entries** | `Entries() iter.Seq[Entry[int, T]]` | Iterator over [index, value] pairs |
+| **ToString** | `ToString() string` | Joins with comma separator |
 
-### Package-level functions
+#### Package-level functions
 
 | Function | Description |
 |----------|-------------|
-| `ArrayOf[T any](values ...T) Array[T]` | Creates an Array from its arguments |
-| `ArrayFrom[T any](seq iter.Seq[T]) Array[T]` | Creates an Array from a sequence |
+| `ArrayOf[T](values ...T) Array[T]` | Creates array from arguments |
+| `ArrayFrom[T](seq iter.Seq[T]) Array[T]` | Creates array from iterator |
 
 ---
 
-## Map
+### Map
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| Set | `Set(key K, value V) *Map[K, V]` | Adds or updates a key-value pair, returns the Map for chaining |
-| Get | `Get(key K) (V, bool)` | Returns the value and whether the key exists |
-| Has | `Has(key K) bool` | Returns whether the key exists |
-| Delete | `Delete(key K) bool` | Removes the key, returns whether it was deleted |
-| Clear | `Clear() *Map[K, V]` | Removes all elements, returns the Map for chaining |
-| Keys | `Keys() iter.Seq[K]` | Returns an iterator over the keys |
-| Values | `Values() iter.Seq[V]` | Returns an iterator over the values |
-| Entries | `Entries() iter.Seq[Entry[K, V]]` | Returns an iterator over key-value entries |
-| Size | `Size() int` | Returns the number of elements |
-| GetOrInsert | `GetOrInsert(key K, value V) V` | Returns the value for the key if it exists, otherwise inserts and returns the given value |
-| GetOrInsertComputed | `GetOrInsertComputed(key K, fn func() V) V` | Returns the value for the key if it exists, otherwise computes, inserts, and returns the value |
-| ForEach | `ForEach(fn func(value V, key K))` | Calls fn once for each key/value pair |
-| ForEachUntil | `ForEachUntil(fn func(value V, key K) bool)` | Calls fn once for each key/value pair, stopping when fn returns false |
+| **Set** | `Set(key K, value V) *Map[K, V]` | Adds/updates entry, returns map |
+| **Get** | `Get(key K) (V, bool)` | Gets value, returns found flag |
+| **Has** | `Has(key K) bool` | Checks key existence |
+| **Delete** | `Delete(key K) bool` | Removes entry |
+| **Clear** | `Clear() *Map[K, V]` | Removes all entries |
+| **GetOrInsert** | `GetOrInsert(key K, value V) V` | Get or insert with given value |
+| **GetOrInsertComputed** | `GetOrInsertComputed(key K, fn func() V) V` | Get or compute and insert |
+| **Keys** | `Keys() iter.Seq[K]` | Iterator over keys |
+| **Values** | `Values() iter.Seq[V]` | Iterator over values |
+| **Entries** | `Entries() iter.Seq[Entry[K, V]]` | Iterator over entries |
+| **Size** | `Size() int` | Returns element count |
+| **ForEach** | `ForEach(fn func(V, K))` | Iterates entries |
+| **ForEachUntil** | `ForEachUntil(fn func(V, K) bool)` | Iterates until fn returns false |
 
-### Package-level functions
-
-| Function | Description |
-|----------|-------------|
-| `NewMap[K comparable, V any](entries ...Entry[K, V]) Map[K, V]` | Creates a Map from entries |
-
-### Entry helpers
+#### Package-level functions
 
 | Function | Description |
 |----------|-------------|
-| `E[K comparable, V any](key K, value V) Entry[K, V]` | Creates a single entry |
-| `E2`, `E3`, `E4`, `E5`, `E6`, `E7`, `E8`, `E9` | Create multiple entries at once |
+| `NewMap[K, V](entries ...Entry[K, V]) Map[K, V]` | Creates map from entries |
+
+#### Entry helpers
+
+| Function | Description |
+|----------|-------------|
+| `E(key, value)` | Creates single entry |
+| `E2` \| `E3` \| ... \| `E9` | Creates multiple entries |
+
+---
 
 ### Set
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `NewSet[T comparable](values ...T) Set[T]` | Creates a Set from values |
-| `Size()` | Returns the number of elements |
-| `Add(v T) Set[T]` | Inserts v into the set (no-op if already present) |
-| `Delete(v T) bool` | Removes v from the set, returns whether it was present |
-| `Has(v T) bool` | Reports whether v is in the set |
-| `Clear()` | Removes all values from the set |
-| `IsSubsetOf(other Set[T]) bool` | Reports whether every value of s is also in other |
-| `IsSupersetOf(other Set[T]) bool` | Reports whether every value of other is also in s |
-| `IsDisjointFrom(other Set[T]) bool` | Reports whether s and other have no values in common |
-| `Union(other Set[T]) Set[T]` | Returns a new set containing every value that is in s or in other |
-| `Intersection(other Set[T]) Set[T]` | Returns a new set containing only the values that are in both s and other |
-| `Difference(other Set[T]) Set[T]` | Returns a new set containing the values that are in s but not in other |
-| `SymmetricDifference(other Set[T]) Set[T]` | Returns a new set containing the values that are in exactly one of s and other |
+| **Add** | `Add(v T) Set[T]` | Inserts value |
+| **Delete** | `Delete(v T) bool` | Removes value |
+| **Has** | `Has(v T) bool` | Checks value existence |
+| **Clear** | `Clear()` | Removes all values |
+| **Size** | `Size() int` | Returns element count |
+| **IsSubsetOf** | `IsSubsetOf(other Set[T]) bool` | Checks subset relation |
+| **IsSupersetOf** | `IsSupersetOf(other Set[T]) bool` | Checks superset relation |
+| **IsDisjointFrom** | `IsDisjointFrom(other Set[T]) bool` | Checks if disjoint |
+| **Union** | `Union(other Set[T]) Set[T]` | Returns union |
+| **Intersection** | `Intersection(other Set[T]) Set[T]` | Returns intersection |
+| **Difference** | `Difference(other Set[T]) Set[T]` | Returns difference |
+| **SymmetricDifference** | `SymmetricDifference(other Set[T]) Set[T]` | Returns symmetric diff |
 
-### Package-level functions
+#### Package-level functions
 
-| Function                                        | Description               |
-|-------------------------------------------------|---------------------------|
-| `NewSet[T comparable](values ...T) Set[T]` | Creates a Set from values |
+| Function | Description |
+|----------|-------------|
+| `NewSet[T](values ...T) Set[T]` | Creates set from values |
 
 ---
 
-<sub><sup>Caution: the library was vibe-coded, use it at your own risk.</sub></sub>
+## Comparison with Standard Go
+
+| JavaScript | This Library | Standard Library |
+|------------|--------------|------------------|
+| `arr.map(fn)` | `arr.Map(fn)` | N/A |
+| `obj.get(key)` | `m.Get(key)` | `m[key]` |
+| `set.has(val)` | `s.Has(val)` | N/A |
+| `map.entries()` | `m.Entries()` | N/A |
+
+---
+
+<sub><sup>Caution: This library was vibe-coded—use it at your own risk!</sup></sub>
